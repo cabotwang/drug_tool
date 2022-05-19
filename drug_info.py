@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
-from streamlit.scriptrunner import get_script_run_ctx
 from hydralit import HydraHeadApp
 
-
-data = pd.read_excel('./base_data/drug_cag.xlsx', usecols=['一级目录', '二级目录', '三级目录', '化学名'])
+data = pd.read_excel('./base_data/drug_cag.xlsx', usecols=['一级目录', '二级目录', '三级目录', '化学名', '英文名', '商品名',
+                                                           '适应症', '用法用量', '临床试验'])
 data.to_csv('./base_data/drug_cag.csv', index=False, encoding='utf-8_sig')
+
 
 class druginfoApp(HydraHeadApp):
 
@@ -14,7 +14,8 @@ class druginfoApp(HydraHeadApp):
         # st.header('药品知识库')
         @st.cache
         def data_read():
-            drug_cag = pd.read_csv('./base_data/drug_cag.csv', usecols=['一级目录', '二级目录', '三级目录', '化学名'])
+            drug_cag = pd.read_csv('./base_data/drug_cag.csv', usecols=['一级目录', '二级目录', '三级目录', '化学名', '英文名', '商品名',
+                                                                        '适应症', '用法用量', '临床试验'])
             return drug_cag
 
         data_drug_cag = data_read()
@@ -42,5 +43,22 @@ class druginfoApp(HydraHeadApp):
                 drug = drug_name1
             if submit2:
                 drug = drug_name2
-            st.subheader(drug)
+            st.header(drug)
 
+            df_slide = data_drug_cag[data_drug_cag['化学名'] == drug]
+            df_slide = df_slide.set_index('化学名')
+            st.subheader('英文名')
+            st.write(df_slide.loc[drug, '英文名'])
+            st.markdown("")
+
+            st.subheader('适应症')
+            st.write(df_slide.loc[drug, '适应症'])
+            st.markdown("")
+
+            st.subheader('用法用量')
+            st.write(df_slide.loc[drug, '用法用量'])
+            st.markdown("")
+
+            st.subheader('临床试验')
+            st.write(df_slide.loc[drug, '临床试验'])
+            st.markdown("")
