@@ -108,7 +108,7 @@ class cistoolApp(HydraHeadApp):
                     df1['赔付金额'] = df1['人均费用'].apply(
                         lambda x: reburse_amount(x, deduction, reburse_rate_1, reburse_rate_2, pmh_rate))
                     df1['成本'] = df1['使用率'] * df1['赔付金额']
-                    df1 = df1[['商品名', '通用名', '适应症', '治疗评级', '成本']]
+                    df1 = df1[['商品名', '通用名', '适应症', '治疗评级','使用率', '赔付金额', '成本']]
                     df1 = df1.drop_duplicates(subset=['商品名', '适应症'])
                     df = df1.set_index('商品名')
                 with c2:
