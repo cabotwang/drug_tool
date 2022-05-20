@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from hydralit import HydraHeadApp
+import math
 
 # create a wrapper class
 class cistoolApp(HydraHeadApp):
@@ -91,6 +92,9 @@ class cistoolApp(HydraHeadApp):
                         return (float(amount) - float(dedu)) * (
                                 float(rb1) * pmh_rate + float(rb2) * (1 - pmh_rate)) / 100
 
+                def utl_rate(cost, ded, par_rate, base_rate):
+                    return base_rate*(-1.1299*par_rate+1.652) * min(1, math.exp(-0.9475*ded/cost+0.1394))
+
                 if add:
                     if uploader_measure == '单个药品':
                         if {'商品名': drug_name, '适应症': indication} not in get_data():
@@ -100,6 +104,7 @@ class cistoolApp(HydraHeadApp):
                         df1 = data[['商品名', '适应症']]
                     df1 = pd.merge(df1, drug_cost, on=['商品名', '适应症'], how='left')
                     df1 = pd.merge(df1, drug_utl, on=['商品名', '适应症'], how='left')
+                    df1['使用率'] = df1.apply(lambda x: utl_rate(x['人均费用'], deduction, par_rate, x['使用率']), axis=1)
                     df1['赔付金额'] = df1['人均费用'].apply(
                         lambda x: reburse_amount(x, deduction, reburse_rate_1, reburse_rate_2, pmh_rate))
                     df1['成本'] = df1['使用率'] * df1['赔付金额']
@@ -119,10 +124,8 @@ class cistoolApp(HydraHeadApp):
         with st.expander("详细说明", expanded=False):
             df1 = pd.merge(df, full_data, on=['商品名', '适应症'], how='inner')
             gdata = df1.groupby(['商品名', '地区', '适应症']).agg(
-                {'人次数': 'count', '药品总金额': 'sum', '本次赔付金额': 'sum', '1万判定': 'sum', '1.5万判定': 'sum',
-                 '2万判定': 'sum', '既往症人数': 'sum'}).reset_index()
-            gdata.columns = ['商品名', '地区', '适应症', '人头数', '总费用', '总理赔金额', '1万以上人数', '1.5万以上人数',
-                             '2万以上人数', '既往症人数']
+                {'人次数': 'count', '药品总金额': 'sum', '本次赔付金额': 'sum', '既往症人数': 'sum'}).reset_index()
+            gdata.columns = ['商品名', '地区', '适应症', '人头数', '总费用', '总理赔金额', '既往症人数']
             gdata = pd.merge(gdata, region_info, on='地区', how='left')
             gdata['使用率(1/10万)'] = (gdata['人头数'] / gdata['总参保人数']).apply(lambda x: '%.2f' % (x * 100000))
             gdata['成本'] = gdata['总理赔金额'] / gdata['总参保人数']
