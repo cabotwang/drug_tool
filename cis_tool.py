@@ -107,7 +107,7 @@ class cistoolApp(HydraHeadApp):
                     df1 = pd.merge(df1, drug_cost, on=['商品名', '适应症'], how='left')
                     df1 = pd.merge(df1, drug_utl, on=['商品名', '适应症'], how='left')
                     df1 = pd.concat([df1]*100).reset_index()
-                    df1['参保率'] = df1.index
+                    df1['参保率'] = df1.index/100
                     df1['免赔额'] = int(deduction)
                     df1['使用率'] = df1.apply(lambda x: ult_rate(x['使用率'], x['参保率'], x['人均费用'], x['免赔额']), axis=1)
                     df1['赔付金额'] = df1['人均费用'].apply(
