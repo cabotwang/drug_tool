@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from hydralit import HydraHeadApp
-import math
+
 
 # create a wrapper class
 class cistoolApp(HydraHeadApp):
@@ -92,9 +92,6 @@ class cistoolApp(HydraHeadApp):
                         return (float(amount) - float(dedu)) * (
                                 float(rb1) * pmh_rate + float(rb2) * (1 - pmh_rate)) / 100
 
-                def utl_rate(cost, ded, par_rate, base_rate):
-                    return base_rate*(-1.1299*par_rate+1.652) * min(1, math.exp(-0.9475*ded/cost+0.1394))
-
                 if add:
                     if uploader_measure == '单个药品':
                         if {'商品名': drug_name, '适应症': indication} not in get_data():
@@ -104,11 +101,10 @@ class cistoolApp(HydraHeadApp):
                         df1 = data[['商品名', '适应症']]
                     df1 = pd.merge(df1, drug_cost, on=['商品名', '适应症'], how='left')
                     df1 = pd.merge(df1, drug_utl, on=['商品名', '适应症'], how='left')
-                    df1['使用率'] = df1.apply(lambda x: utl_rate(x['人均费用'], deduction, par_rate, x['使用率']), axis=1)
                     df1['赔付金额'] = df1['人均费用'].apply(
                         lambda x: reburse_amount(x, deduction, reburse_rate_1, reburse_rate_2, pmh_rate))
                     df1['成本'] = df1['使用率'] * df1['赔付金额']
-                    df1 = df1[['商品名', '通用名', '适应症', '治疗评级','使用率', '赔付金额', '成本']]
+                    df1 = df1[['商品名', '通用名', '适应症', '治疗评级', '成本']]
                     df1 = df1.drop_duplicates(subset=['商品名', '适应症'])
                     df = df1.set_index('商品名')
                 with c2:
@@ -150,3 +146,4 @@ class cistoolApp(HydraHeadApp):
                 file_name='历史数据结果.csv',
                 mime='text/csv',
             )
+            
