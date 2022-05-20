@@ -83,7 +83,7 @@ class cistoolApp(HydraHeadApp):
                     reburse_rate_2 = st.text_input("赔付比例", value=80)
                     reburse_rate_1 = 0
                 st.markdown("")
-                add = st.button('增加药品')
+                add = st.button('进行测算')
 
                 st.markdown("")
 
@@ -106,13 +106,14 @@ class cistoolApp(HydraHeadApp):
                         df1 = data[['商品名', '适应症']]
                     df1 = pd.merge(df1, drug_cost, on=['商品名', '适应症'], how='left')
                     df1 = pd.merge(df1, drug_utl, on=['商品名', '适应症'], how='left')
-                    df1['参保率'] = par_rate/100
+                    df1['参保率'] = range(0, 100)
                     df1['免赔额'] = int(deduction)
-                    df1['使用率'] = df1.apply(lambda x:ult_rate(x['使用率'], x['参保率'], x['人均费用'], x['免赔额']), axis=1)
-                    st.write(df1)
+                    df1['使用率'] = df1.apply(lambda x: ult_rate(x['使用率'], x['参保率'], x['人均费用'], x['免赔额']), axis=1)
                     df1['赔付金额'] = df1['人均费用'].apply(
                         lambda x: reburse_amount(x, deduction, reburse_rate_1, reburse_rate_2, pmh_rate))
                     df1['成本'] = df1['使用率'] * df1['赔付金额']
+                    chart_data = df1['成本']
+                    df1 = df1[df1['参保率'] == par_rate]
                     df1['使用率'] = df1['使用率'].apply(lambda x: '%.2f' % (x * 100000))
                     df1 = df1[['商品名', '通用名', '适应症', '治疗评级', '使用率', '赔付金额', '成本']]
                     df1 = df1.drop_duplicates(subset=['商品名', '适应症'])
@@ -121,6 +122,7 @@ class cistoolApp(HydraHeadApp):
                     st.metric(label="药品成本", value='%.2f' % df['成本'].sum())
                     # st.write('药品成本为：%.2f' % df['成本'].sum())
                     st.table(df)
+                    st.line_chart(chart_data)
                     clear = st.button('清除列表')
 
                     if clear:
