@@ -1,14 +1,15 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from hydralit import HydraHeadApp
 import math
 
 
 # create a wrapper class
 class cistoolApp(HydraHeadApp):
-
     def run(self):
+        @st.cache(allow_output_mutation=True)
+        def get_data():
+            return []
 
         @st.cache
         def data_read():
@@ -23,6 +24,10 @@ class cistoolApp(HydraHeadApp):
         drug_utl, drug_cost, full_data, region_info = data_read()
         df = pd.DataFrame([], columns=['商品名', '通用名', '适应症', '治疗评级', '成本'])
         # st.header('惠民保药品测算工具')
+
+        # @st.cache(allow_output_mutation=True)
+        # def get_data():
+        #     return []
 
         def _max_width_():
             max_width_str = f"max-width: 1900px;"
@@ -42,10 +47,6 @@ class cistoolApp(HydraHeadApp):
         with st.container():
             ce, c1, ce_1, c2, ce_2 = st.columns([0.07, 1.5, 0.07, 5, 0.07])
 
-            @st.cache(allow_output_mutation=True)
-            def get_data():
-                return []
-
             with c1:
                 uploader_measure = st.selectbox('测算方式', ('单个药品', '药品清单'))
                 if uploader_measure == '单个药品':
@@ -56,23 +57,9 @@ class cistoolApp(HydraHeadApp):
                     druglist = st.file_uploader('上传药品清单', help='请上传excel文档', type=['xlsx'])
                     if druglist is not None:
                         data = pd.read_excel(druglist)
-                    # st.write('请选择对应的数据列')
+
                 deduction = st.text_input("免赔额:", value=0)
                 par_rate = st.slider("参保率:", 0, 100, 40)
-
-                # ColorMinMax = st.markdown(''' <style> div.stSlider > div[data-baseweb = "slider"] > div[data-testid="stTickBar"] > div {
-                #     background: rgb(1 1 1 / 0%); } </style>''', unsafe_allow_html=True)
-                # Slider_Cursor = st.markdown(''' <style> div.stSlider > div[data-baseweb="slider"] > div > div > div[role="slider"]{
-                #     background-color: rgb(3, 90, 173); box-shadow: rgb(3, 90, 173 / 20%) 0px 0px 0px 0.2rem;} </style>''',
-                #                             unsafe_allow_html=True)
-                # Slider_Number = st.markdown(''' <style> div.stSlider > div[data-baseweb="slider"] > div > div > div > div
-                #                                 { color: rgb(14, 38, 74); } </style>''', unsafe_allow_html=True)
-                # col = f''' <style> div.stSlider > div[data-baseweb = "slider"] > div > div {{
-                #     background: linear-gradient(to right, rgb(3, 90, 173) 0%,
-                #                                 rgb(3, 90, 173) {par_rate}%,
-                #                                 rgba(151, 166, 195, 0.25) {par_rate}%,
-                #                                 rgba(151, 166, 195, 0.25) 100%); }} </style>'''
-                # ColorSlider = st.markdown(col, unsafe_allow_html=True)
 
                 PMH = st.checkbox('是否包含既往症患者')
                 pmh_rate = -0.0096 * par_rate + 0.9457
@@ -90,38 +77,47 @@ class cistoolApp(HydraHeadApp):
                 def reburse_amount(amount, dedu, rb1, rb2, pmh_rate):
                     if float(amount) < float(dedu):
                         return 0
-                    else:
+                    elif PMH:
                         return (float(amount) - float(dedu)) * (
                                 float(rb1) * pmh_rate + float(rb2) * (1 - pmh_rate)) / 100
+                    else:
+                        return (float(amount) - float(dedu)) * (float(rb2) / 100)
 
                 def ult_rate(base_rate, par_rate, cost, ded):
-                    return base_rate*(-1.1299*par_rate+1.652) * min(1, math.exp(-0.9475*ded/cost+0.1394))
+                    if PMH:
+                        return base_rate*(-1.1299*par_rate+1.652) * min(1, math.exp(-0.9475*ded/cost+0.1394))
+                    else:
+                        return base_rate * (-1.1299 * par_rate + 1.652) * \
+                               min(1, math.exp(-0.9475 * ded / cost + 0.1394))*0.3
 
                 if add:
                     if uploader_measure == '单个药品':
                         if {'商品名': drug_name, '适应症': indication} not in get_data():
                             get_data().append({'商品名': drug_name, '适应症': indication})
-                        df1 = pd.DataFrame(get_data())
                     else:
-                        df1 = data[['商品名', '适应症']]
-                    df1 = pd.merge(df1, drug_cost, on=['商品名', '适应症'], how='left')
-                    df1 = pd.merge(df1, drug_utl, on=['商品名', '适应症'], how='left')
-                    df1['参保率'] = par_rate/100
-                    df1['免赔额'] = int(deduction)
-                    df1['使用率'] = df1.apply(lambda x: ult_rate(x['使用率'], x['参保率'], x['人均费用'], x['免赔额']), axis=1)
-                    df1['赔付金额'] = df1['人均费用'].apply(
-                        lambda x: reburse_amount(x, deduction, reburse_rate_1, reburse_rate_2, pmh_rate))
-                    df1['成本'] = df1['使用率'] * df1['赔付金额']
-                    df1['使用率'] = df1['使用率'].apply(lambda x: '%.2f' % (x * 100000))
-                    df1 = df1[['商品名', '通用名', '适应症', '治疗评级', '使用率', '赔付金额', '成本']]
-                    df1 = df1.drop_duplicates(subset=['商品名', '适应症'])
-                    df = df1.set_index('商品名')
+                        get_data().clear()
+                        for row, columns in data.iterrows():
+                            get_data().append({'商品名': columns['商品名'], '适应症': columns['适应症']})
+
+                df1 = pd.DataFrame(data=get_data())
+                df1 = pd.merge(df1, drug_cost, on=['商品名', '适应症'], how='left')
+                df1 = pd.merge(df1, drug_utl, on=['商品名', '适应症'], how='left')
+                df1['参保率'] = par_rate/100
+                df1['免赔额'] = int(deduction)
+                df1['使用率'] = df1.apply(lambda x:ult_rate(x['使用率'], x['参保率'], x['人均费用'], x['免赔额']), axis=1)
+                df1['预计赔付金额'] = df1['人均费用'].apply(
+                    lambda x: reburse_amount(x, deduction, reburse_rate_1, reburse_rate_2, pmh_rate))
+                df1['成本'] = df1['使用率'] * df1['预计赔付金额']
+                df1['使用率'] = df1['使用率'].apply(lambda x: '%.2f' % (x * 100000))
+                df1 = df1[['商品名', '通用名', '适应症', '治疗评级', '使用率', '预计赔付金额', '成本']]
+                df1['预计赔付金额'] = df1['预计赔付金额'].apply(lambda x: '%.0f' % x)
+                df1 = df1.drop_duplicates(subset=['商品名', '适应症'])
+                df = df1.set_index('商品名')
+
                 with c2:
                     st.metric(label="药品成本", value='%.2f' % df['成本'].sum())
-                    # st.write('药品成本为：%.2f' % df['成本'].sum())
                     st.table(df)
                     clear = st.button('清除列表')
-
                     if clear:
                         get_data().clear()
 
@@ -140,6 +136,7 @@ class cistoolApp(HydraHeadApp):
             gdata['参保率'] = gdata['参保率'].apply(lambda x: format(x, '.0%'))
             gdata = gdata[['商品名', '适应症', '地区', '参保率', '使用率(1/10万)', '人均自费', '成本', '免赔额', '非既往症', '既往症']]
             gdata = gdata.set_index('商品名')
+            # selection = aggrid_interactive_table(df=gdata)
             st.table(gdata)
 
             @st.cache
